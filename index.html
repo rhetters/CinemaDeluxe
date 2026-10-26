@@ -128,7 +128,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700&family=Fredoka:wght@400;500;600;700&family=Limelight&family=Nunito:wght@400;500;600;700&family=Oswald:wght@500;700&family=Playfair+Display:wght@700;900&family=Russo+One&display=swap">
 <style>
 /* ============================================================
    Cinema Deluxe — Harvest Moon / Story of Seasons restyle
@@ -744,6 +744,9 @@ legend{
 }
 .chart-empty{ color:var(--muted); font-size:12px; padding:6px 2px; }
 .charts-under-msg{ margin-top:8px; flex:none; }
+.poster-frame{ line-height:0; border-radius:8px; overflow:hidden; }
+.poster-canvas{ width:100%; height:auto; display:block; }
+
 .info-tabs{ display:flex; gap:6px; margin-bottom:8px; }
 .info-tab{
   height:32px; padding:0 14px; border-radius:10px; border:2px solid #4a3420;
@@ -2757,13 +2760,278 @@ async function passWeekReleased(m) {                  // PassWeekReleased
 }
 
 
+
+// ---------------------------------------------------------------- procedural movie poster
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const POSTER_FONTS = [
+  "Impact, Haettenschweiler, sans-serif",
+  '"Bebas Neue", Impact, sans-serif',
+  '"Oswald", "Arial Narrow", sans-serif',
+  '"Cinzel", "Times New Roman", serif',
+  '"Playfair Display", Georgia, serif',
+  '"Russo One", Impact, sans-serif',
+  '"Limelight", "Comic Sans MS", fantasy',
+  "Georgia, 'Times New Roman', serif",
+  '"Arial Black", Gadget, sans-serif',
+  "Palatino Linotype, Book Antiqua, Palatino, serif",
+  "Trebuchet MS, Helvetica, sans-serif",
+  '"Courier New", Courier, monospace',
+];
+// Genre base palettes [bg1, bg2, accent, text, muted]
+const GENRE_PAL = {
+  1: ["#1a0a0a", "#5c1010", "#e85d04", "#fff5e6", "#c4a574"], // Action
+  2: ["#0d2822", "#1b4f4a", "#f4d35e", "#fffef5", "#a8d5c2"], // Comedy
+  3: ["#0b1320", "#1c2541", "#c9a227", "#f0e6d0", "#7a8ba0"], // Drama
+  4: ["#2a1220", "#5c2a3e", "#f2a6c0", "#fff0f5", "#d4a5b5"], // Romance
+  5: ["#0a0a0c", "#1a0a12", "#8b0000", "#e8dcc8", "#6a4050"], // Horror
+  6: ["#050816", "#0d1b2a", "#00d4ff", "#e8f4ff", "#6a8aaa"], // Sci-Fi
+};
+function posterPalette(m, rnd) {
+  const base = GENRE_PAL[m.genre] || GENRE_PAL[3];
+  const tense = (m.tense | 0) / 10, action = (m.action | 0) / 10, funny = (m.funny | 0) / 10;
+  // Shift toward red/orange with action+tense, toward yellow with funny, darker with tense
+  const shift = (hex, dr, dg, db) => {
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    r = Math.max(0, Math.min(255, r + dr)); g = Math.max(0, Math.min(255, g + dg)); b = Math.max(0, Math.min(255, b + db));
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  };
+  const darken = Math.floor(tense * 30);
+  const warm = Math.floor(action * 40 - funny * 15);
+  const cheer = Math.floor(funny * 35);
+  return {
+    bg1: shift(base[0], warm - darken, cheer - darken, -darken + Math.floor(funny * 10)),
+    bg2: shift(base[1], warm, cheer - 10, Math.floor((1 - tense) * 15)),
+    accent: shift(base[2], Math.floor(action * 20), Math.floor(funny * 15), -Math.floor(tense * 10)),
+    text: base[3],
+    muted: base[4],
+    pattern: tense > 0.6 ? "slash" : action > 0.6 ? "burst" : funny > 0.6 ? "dots" : (m.genre === 6 ? "grid" : m.genre === 5 ? "vignette" : "waves"),
+  };
+}
+function fitPosterTitle(ctx, title, maxW, maxSize, minSize) {
+  let size = maxSize;
+  ctx.font = "700 " + size + "px sans-serif";
+  while (size > minSize && ctx.measureText(title).width > maxW) {
+    size -= 2;
+    ctx.font = "700 " + size + "px sans-serif";
+  }
+  // word-wrap into lines
+  const words = title.split(/\s+/);
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? cur + " " + w : w;
+    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return { size, lines };
+}
+function drawPosterBackground(ctx, W, H, pal, rnd) {
+  const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
+  g.addColorStop(0, pal.bg1);
+  g.addColorStop(0.55, pal.bg2);
+  g.addColorStop(1, pal.bg1);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  if (pal.pattern === "slash") {
+    ctx.strokeStyle = pal.accent;
+    ctx.lineWidth = 14;
+    for (let i = -H; i < W + H; i += 28) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + H * 0.7, H); ctx.stroke();
+    }
+  } else if (pal.pattern === "burst") {
+    ctx.translate(W / 2, H * 0.38);
+    ctx.fillStyle = pal.accent;
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + rnd() * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * W, Math.sin(a) * 8);
+      ctx.lineTo(Math.cos(a + 0.08) * W * 0.4, Math.sin(a + 0.08) * W * 0.4);
+      ctx.closePath(); ctx.fill();
+    }
+  } else if (pal.pattern === "dots") {
+    ctx.fillStyle = pal.accent;
+    for (let i = 0; i < 60; i++) {
+      const x = rnd() * W, y = rnd() * H, r = 4 + rnd() * 18;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (pal.pattern === "grid") {
+    ctx.strokeStyle = pal.accent;
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 18) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 18) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  } else if (pal.pattern === "waves") {
+    ctx.strokeStyle = pal.accent;
+    ctx.lineWidth = 2;
+    for (let y = 40; y < H; y += 36) {
+      ctx.beginPath();
+      for (let x = 0; x <= W; x += 8) ctx.lineTo(x, y + Math.sin(x * 0.04 + y) * 10);
+      ctx.stroke();
+    }
+  }
+  // vignette always
+  ctx.restore();
+  const vig = ctx.createRadialGradient(W / 2, H * 0.45, H * 0.15, W / 2, H * 0.5, H * 0.75);
+  vig.addColorStop(0, "rgba(0,0,0,0)");
+  vig.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+  // film grain
+  ctx.globalAlpha = 0.06;
+  for (let i = 0; i < 900; i++) {
+    ctx.fillStyle = rnd() > 0.5 ? "#fff" : "#000";
+    ctx.fillRect(rnd() * W, rnd() * H, 1.2, 1.2);
+  }
+  ctx.globalAlpha = 1;
+  // border
+  ctx.strokeStyle = pal.accent;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(10, 10, W - 20, H - 20);
+  ctx.strokeStyle = "rgba(255,255,255,0.15)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(16, 16, W - 32, H - 32);
+}
+function generateMoviePoster(m) {
+  const W = 280, H = 420;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  canvas.className = "poster-canvas";
+  canvas.setAttribute("aria-label", "Movie poster for " + (m.title || "film"));
+  const ctx = canvas.getContext("2d");
+  const seed = hashStr((m.title || "") + "|" + (m.genre || 0) + "|" + (m.tense|0) + (m.action|0) + (m.funny|0));
+  const rnd = mulberry32(seed);
+  const pal = posterPalette(m, rnd);
+  const font = POSTER_FONTS[seed % POSTER_FONTS.length];
+  drawPosterBackground(ctx, W, H, pal, rnd);
+  // Studio / top billing
+  const dist = distList()[m.distributor - 1] || "Studio";
+  ctx.fillStyle = pal.muted;
+  ctx.font = "600 11px Nunito, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(dist.toUpperCase() + " PRESENTS", W / 2, 36);
+  // Stars above title
+  const actor = m.cast && m.cast.actor ? m.cast.actor.name : null;
+  const actress = m.cast && m.cast.actress ? m.cast.actress.name : null;
+  const starLine = [actor, actress].filter(Boolean).join("  ·  ");
+  if (starLine) {
+    ctx.fillStyle = pal.text;
+    ctx.font = "600 13px Nunito, sans-serif";
+    ctx.fillText(starLine.toUpperCase(), W / 2, 58);
+  }
+  // Title block
+  ctx.fillStyle = pal.text;
+  ctx.textAlign = "center";
+  const title = (m.title || "UNTITLED").toUpperCase();
+  // measure with chosen font
+  let size = 42;
+  ctx.font = "700 " + size + "px " + font;
+  while (size > 18 && ctx.measureText(title).width > W - 40) {
+    size -= 1;
+    ctx.font = "700 " + size + "px " + font;
+  }
+  const words = title.split(/\s+/);
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? cur + " " + w : w;
+    ctx.font = "700 " + size + "px " + font;
+    if (ctx.measureText(test).width > W - 36 && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+  // If many lines, shrink
+  if (lines.length > 3) size = Math.max(16, size - 6);
+  const titleY = H * 0.42 - (lines.length * (size + 4)) / 2;
+  lines.forEach((ln, i) => {
+    ctx.font = "700 " + size + "px " + font;
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillText(ln, W / 2 + 2, titleY + i * (size + 6) + 2);
+    ctx.fillStyle = pal.text;
+    ctx.fillText(ln, W / 2, titleY + i * (size + 6));
+  });
+  // Accent rule under title
+  const ruleY = titleY + lines.length * (size + 6) + 10;
+  ctx.strokeStyle = pal.accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W * 0.25, ruleY); ctx.lineTo(W * 0.75, ruleY); ctx.stroke();
+  // Tagline
+  if (m.tag) {
+    ctx.fillStyle = pal.muted;
+    ctx.font = "italic 12px Georgia, serif";
+    const tag = m.tag.length > 48 ? m.tag.slice(0, 46) + "…" : m.tag;
+    ctx.fillText("“" + tag + "”", W / 2, ruleY + 22);
+  }
+  // Director
+  const dir = m.cast && m.cast.dir ? m.cast.dir.name : null;
+  const notableDir = dir && m.cast.dir.price >= 8;
+  if (dir) {
+    ctx.fillStyle = pal.text;
+    ctx.font = (notableDir ? "700 " : "600 ") + "12px Nunito, sans-serif";
+    ctx.fillText((notableDir ? "A FILM BY " : "DIRECTED BY ") + dir.toUpperCase(), W / 2, H - 100);
+  }
+  // Billing block (tiny poster legal-style text)
+  const bits = [];
+  if (m.cast && m.cast.composer) bits.push("Music " + m.cast.composer.name);
+  if (m.cast && m.cast.fx) bits.push("VFX " + m.cast.fx.name);
+  if (m.cast && m.cast.sound) bits.push(m.cast.sound.name);
+  if (m.animated) bits.push("Animated Feature");
+  if (m.epic) bits.push("Epic Presentation");
+  bits.push(DATA.genres[(m.genre || 1) - 1] || "");
+  if (m.rating != null && typeof RATINGS !== "undefined") bits.push("Rated " + RATINGS[m.rating]);
+  ctx.fillStyle = pal.muted;
+  ctx.font = "9px Nunito, sans-serif";
+  const bill = bits.filter(Boolean).join("   ·   ");
+  // wrap billing
+  const bWords = bill.split(/\s+/);
+  let bLine = "", bLines = [], bY = H - 78;
+  for (const w of bWords) {
+    const t = bLine ? bLine + " " + w : w;
+    if (ctx.measureText(t).width > W - 28 && bLine) { bLines.push(bLine); bLine = w; }
+    else bLine = t;
+  }
+  if (bLine) bLines.push(bLine);
+  bLines.slice(0, 3).forEach((ln, i) => ctx.fillText(ln, W / 2, bY + i * 11));
+  // Month band
+  const month = (S.co && DATA.months[S.co.month - 1]) || "Soon";
+  ctx.fillStyle = pal.accent;
+  ctx.fillRect(0, H - 42, W, 42);
+  ctx.fillStyle = pal.bg1;
+  ctx.font = "700 16px Oswald, Nunito, sans-serif";
+  ctx.fillText("IN THEATERS " + month.toUpperCase(), W / 2, H - 16);
+  // Company
+  if (S.co && S.co.name) {
+    ctx.fillStyle = pal.muted;
+    ctx.font = "10px Nunito, sans-serif";
+    ctx.fillText(S.co.name, W / 2, H - 52);
+  }
+  return canvas;
+}
+
 function openingWeekendDialog(m) {                    // OpeningWeekend
   const R = m.rel;
   if (R.weekly > 20) Snd.play("Hit");
-  return dialog({ w: 260, modalLabel: "Opening weekend", build(b, close) {
-    b.append(h("div", { class: "picbox" }, img(R.weekly > 20 ? "pict130" : "pict129", "px", R.weekly > 20 ? "Sold out marquee" : "Now playing marquee")),
-      h("div", null, h("b", null, "Opening Gross: "), h("span", { class: "num" }, money(R.weekly))),
-      h("div", { class: "thumbs" },
+  return dialog({ w: 340, modalLabel: "Opening weekend", build(b, close) {
+    let poster;
+    try { poster = generateMoviePoster(m); } catch (e) { poster = img(R.weekly > 20 ? "pict130" : "pict129", "px", "Poster"); }
+    b.append(h("div", { class: "picbox poster-frame", style: "max-width:280px;margin:0 auto" }, poster),
+      h("div", { style: "text-align:center;margin-top:8px" }, h("b", null, "Opening Gross: "), h("span", { class: "num" }, money(R.weekly))),
+      h("div", { class: "thumbs", style: "justify-content:center" },
         h("b", null, "Critics:"), img(R.siskel ? "cicn138" : "cicn139"), h("span", null, R.siskel ? "Thumbs up" : "Thumbs down"),
         h("b", null, "Audiences:"), img(R.ebert ? "cicn138" : "cicn139"), h("span", null, R.ebert ? "Thumbs up" : "Thumbs down")),
       h("div", { class: "dbtns", style: "justify-content:center" }, btn("Okay", () => close(), { def: true })));

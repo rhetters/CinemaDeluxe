@@ -71,8 +71,8 @@
 /* ---- mobile polish ---- */
 @media (max-width:900px){
   .nav-tab{ font-size:12px; padding:0 8px; height:34px; border-width:2px; }
-  #menubar{ height:56px; gap:6px; }
-  #desk{ inset: calc(56px + env(safe-area-inset-top,0px)) 0 0 0; }
+  #menubar{ height:68px; gap:6px; }
+  #desk{ inset: calc(68px + env(safe-area-inset-top,0px)) 0 0 0; }
   .tbar{ gap:6px; padding:8px 10px; }
   .tbtn{ height:36px; padding:0 10px; font-size:13px; }
   .stats{ grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -83,7 +83,7 @@
   .title-menu{ padding:20px 16px 24px; }
 }
 @media (max-width:520px){
-  .vol #volume{ width:48px; }
+  .vol input[type=range], #volume, #musicVolume{ width:48px; }
   #clock .dt{ font-size:11px; padding:4px 8px; }
   .nav-tabs{ gap:4px; }
   .closebox{ width:30px; height:30px; }
@@ -170,7 +170,7 @@ body::before{
 /* ---- top banner (wooden sign) ---- */
 #menubar{
   position:fixed; top:0; left:0; right:0; z-index:1000;
-  height:64px; margin-top:env(safe-area-inset-top,0px);
+  height:72px; margin-top:env(safe-area-inset-top,0px);
   padding:0 max(14px,env(safe-area-inset-right,0px)) 0 max(14px,env(safe-area-inset-left,0px));
   display:flex; align-items:center; gap:10px;
   background: linear-gradient(180deg, #c9a06a 0%, var(--wood) 40%, var(--wood2) 100%);
@@ -204,6 +204,7 @@ body.in-game .nav-tabs{ display:flex; }
 }
 .nav-tab:disabled{ opacity:.4; cursor:default; filter:none }
 #clock{ margin-left:auto; display:flex; align-items:center; gap:8px }
+#clock .snd{ width:36px; height:36px; }
 #clock .dt{
   font:600 14px var(--display); padding:6px 14px;
   background:var(--paper); border:3px solid #4a3420; border-radius:999px;
@@ -220,23 +221,75 @@ body.in-game .nav-tabs{ display:flex; }
 #clock .snd:hover{ filter:brightness(1.06) }
 #clock .snd.off{ opacity:.5 }
 .vol{display:flex;align-items:center;gap:4px}
-#volume{
-  --p:80%; -webkit-appearance:none; appearance:none; width:88px; height:10px; border-radius:999px; cursor:pointer;
-  background:linear-gradient(90deg,var(--accent) var(--p), #5a4030 var(--p));
-  border:2px solid #4a3420; outline-offset:4px;
+#clock .vol-stack{
+  display:flex; flex-direction:column; gap:4px; align-items:stretch;
 }
-#volume::-webkit-slider-thumb{
-  -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+#clock .vol-row{
+  display:flex; align-items:center; gap:4px;
+}
+#clock .vol-ico{
+  width:28px; height:28px; border-radius:8px; border:2px solid #4a3420;
+  background: linear-gradient(180deg, #e8d5a8, #c9a06a);
+  display:grid; place-items:center; color:var(--ink); flex:none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 1px 1px 0 rgba(0,0,0,.12);
+}
+#clock .vol-ico .ico{ width:14px; height:14px; }
+#clock .vol-ico.off{ opacity:.45; }
+.vol input[type=range],
+#volume, #musicVolume{
+  --p:80%; -webkit-appearance:none; appearance:none; width:72px; height:8px; border-radius:999px; cursor:pointer;
+  background:linear-gradient(90deg,var(--accent) var(--p), #5a4030 var(--p));
+  border:2px solid #4a3420; outline-offset:2px;
+}
+.vol input[type=range]::-webkit-slider-thumb,
+#volume::-webkit-slider-thumb,
+#musicVolume::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
   background:var(--accent2); border:3px solid #4a3420; box-shadow:0 2px 0 rgba(0,0,0,.2);
 }
-#volume::-moz-range-thumb{
-  width:16px; height:16px; border-radius:50%; background:var(--accent2); border:3px solid #4a3420;
+.vol input[type=range]::-moz-range-thumb,
+#volume::-moz-range-thumb,
+#musicVolume::-moz-range-thumb{
+  width:14px; height:14px; border-radius:50%; background:var(--accent2); border:3px solid #4a3420;
 }
+/* budget remaining bar in cast picker */
+.budget-meter{
+  display:flex; flex-direction:column; gap:4px; padding:8px 10px;
+  background:linear-gradient(180deg,#fffef8,var(--paper2));
+  border:3px solid var(--wood-light); border-radius:12px;
+  box-shadow:0 2px 0 rgba(139,94,60,.1);
+}
+.budget-meter .bm-labels{
+  display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  font:600 13px var(--display); color:var(--wood2);
+}
+.budget-meter .bm-labels .bm-rem{ font-variant-numeric:tabular-nums; }
+.budget-meter .bm-track{
+  height:16px; border-radius:999px; background:#e8dcc0;
+  border:2px solid var(--wood); position:relative; overflow:hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.08);
+}
+.budget-meter .bm-fill{
+  position:absolute; inset:0 auto 0 0; border-radius:999px;
+  transition:width .35s ease, background .25s ease;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.4);
+}
+.budget-meter.bm-green .bm-fill{ background:linear-gradient(90deg,#5a9e3f,#8fd15f); }
+.budget-meter.bm-yellow .bm-fill{ background:linear-gradient(90deg,#d4a017,#f0c14a); }
+.budget-meter.bm-red .bm-fill{ background:linear-gradient(90deg,#c43c2e,#e07a5f); }
+.budget-meter .bm-hint{ font-size:11px; color:var(--muted); }
+/* sortable column headers */
+.colhead span.sortable{
+  cursor:pointer; user-select:none; display:inline-flex; align-items:center; gap:3px;
+}
+.colhead span.sortable:hover{ color:var(--wood2); }
+.colhead span.sortable .sort-ind{ font-size:10px; opacity:.7; }
+
 
 /* ---- main stage ---- */
 #desk{
   position:fixed;
-  inset: calc(64px + env(safe-area-inset-top,0px)) 0 0 0;
+  inset: calc(72px + env(safe-area-inset-top,0px)) 0 0 0;
   padding: 12px max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px));
   display:flex; flex-direction:column; gap:0;
   z-index:1; overflow:hidden;
@@ -509,8 +562,8 @@ legend{
 @media (max-width:900px){
   body:not(.title-mode){ overflow:auto }
   body.title-mode{ overflow:hidden }
-  #desk{ position:static; min-height:calc(100% - 64px); padding-top:12px }
-  body.title-mode #desk{ position:fixed; inset:calc(64px + env(safe-area-inset-top,0px)) 0 0 0; padding:0; }
+  #desk{ position:static; min-height:calc(100% - 72px); padding-top:12px }
+  body.title-mode #desk{ position:fixed; inset:calc(72px + env(safe-area-inset-top,0px)) 0 0 0; padding:0; }
   .win{ min-height:0 }
   .wbody{ overflow:visible }
   .list{ max-height:300px }
@@ -521,7 +574,7 @@ legend{
 }
 @media (max-width:520px){
   .brand{ display:none }
-  #volume{ width:56px }
+  #volume, #musicVolume{ width:56px }
   #clock .dt{ padding:5px 10px; font-size:12px }
 }
 .win{ container-type:inline-size }
@@ -607,8 +660,8 @@ legend{
 /* ---- mobile polish ---- */
 @media (max-width:900px){
   .nav-tab{ font-size:12px; padding:0 8px; height:34px; border-width:2px; }
-  #menubar{ height:56px; gap:6px; }
-  #desk{ inset: calc(56px + env(safe-area-inset-top,0px)) 0 0 0; }
+  #menubar{ height:68px; gap:6px; }
+  #desk{ inset: calc(68px + env(safe-area-inset-top,0px)) 0 0 0; }
   .tbar{ gap:6px; padding:8px 10px; }
   .tbtn{ height:36px; padding:0 10px; font-size:13px; }
   .stats{ grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -619,7 +672,7 @@ legend{
   .title-menu{ padding:20px 16px 24px; }
 }
 @media (max-width:520px){
-  .vol #volume{ width:48px; }
+  .vol input[type=range], #volume, #musicVolume{ width:48px; }
   #clock .dt{ font-size:11px; padding:4px 8px; }
   .nav-tabs{ gap:4px; }
   .closebox{ width:30px; height:30px; }
@@ -849,7 +902,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 
 // ---------------------------------------------------------------- sound
 const Snd = {
-  on: true, vol: 0.8, cache: {},
+  on: true, vol: 0.8, musicVol: 0.85, cache: {},
   ctx: null, bgmGain: null, bgmNodes: [], bgmPlaying: false, bgmWanted: true,
   play(name) {
     if (!this.on || !ASSETS["snd_" + name]) return;
@@ -876,11 +929,11 @@ const Snd = {
     if (this.phase === ph && this.bgmPlaying) return;
     this.phase = ph;
     this.stopBgm(true);
-    if (this.bgmWanted && this.on && this.vol > 0) this.startBgm();
+    if (this.bgmWanted && this.on && (this.musicVol != null ? this.musicVol : this.vol) > 0) this.startBgm();
   },
   startBgm() {
     this.bgmWanted = true;
-    if (!this.on || this.vol <= 0) return;
+    if (!this.on || (this.musicVol != null ? this.musicVol : this.vol) <= 0) return;
     const ctx = this.ensureCtx();
     if (!ctx) return;
     if (ctx.state === "suspended") ctx.resume().catch(() => {});
@@ -893,11 +946,11 @@ const Snd = {
     const master = this.bgmGain;
     const phase = this.phase || "menu";
     const presets = {
-      menu:    { tempo: 92, scale: [196.00, 220.00, 246.94, 293.66, 329.63, 392.00], lead: "triangle", bassMul: 0.5, bright: 0.012, leadGain: 0.045 },
-      prod:    { tempo: 108, scale: [174.61, 196.00, 220.00, 261.63, 293.66, 349.23], lead: "square", bassMul: 0.45, bright: 0.008, leadGain: 0.028 },
-      release: { tempo: 118, scale: [220.00, 246.94, 277.18, 329.63, 369.99, 440.00], lead: "triangle", bassMul: 0.55, bright: 0.015, leadGain: 0.038 },
-      win:     { tempo: 128, scale: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25], lead: "triangle", bassMul: 0.5, bright: 0.02, leadGain: 0.05 },
-      lose:    { tempo: 72, scale: [146.83, 164.81, 174.61, 196.00, 220.00, 246.94], lead: "triangle", bassMul: 0.4, bright: 0.006, leadGain: 0.03 },
+      menu:    { tempo: 92, scale: [196.00, 220.00, 246.94, 293.66, 329.63, 392.00], lead: "triangle", bassMul: 0.5, bright: 0.012, leadGain: 0.075 },
+      prod:    { tempo: 108, scale: [174.61, 196.00, 220.00, 261.63, 293.66, 349.23], lead: "square", bassMul: 0.45, bright: 0.008, leadGain: 0.048 },
+      release: { tempo: 118, scale: [220.00, 246.94, 277.18, 329.63, 369.99, 440.00], lead: "triangle", bassMul: 0.55, bright: 0.015, leadGain: 0.065 },
+      win:     { tempo: 128, scale: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25], lead: "triangle", bassMul: 0.5, bright: 0.02, leadGain: 0.08 },
+      lose:    { tempo: 72, scale: [146.83, 164.81, 174.61, 196.00, 220.00, 246.94], lead: "triangle", bassMul: 0.4, bright: 0.006, leadGain: 0.05 },
     };
     const P = presets[phase] || presets.menu;
     const beat = 60 / P.tempo;
@@ -978,7 +1031,8 @@ const Snd = {
   },
   _setBgmVol() {
     if (!this.bgmGain || !this.ctx) return;
-    const target = (this.on && this.bgmWanted && this.vol > 0) ? this.vol * 0.35 : 0;
+    const mv = (this.musicVol != null ? this.musicVol : this.vol);
+    const target = (this.on && this.bgmWanted && mv > 0) ? mv * 0.85 : 0;
     const t = this.ctx.currentTime;
     this.bgmGain.gain.cancelScheduledValues(t);
     this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, t);
@@ -1052,7 +1106,10 @@ const Snd = {
   },
   setVolume(v) {
     this.vol = v;
-    // update cached SFX volumes next play; adjust bgm now
+    // SFX only — BGM has its own slider
+  },
+  setMusicVolume(v) {
+    this.musicVol = v;
     this._setBgmVol();
     if (this.on && this.bgmWanted && v > 0 && !this.bgmPlaying) this.startBgm();
   },
@@ -1194,6 +1251,7 @@ const ICON_SVG = {
   text: '<path d="M4 6h16M4 12h16M4 18h10"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>', reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
   sound: '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
   mute: '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+  music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
 };
 const CICN_ICON = { cicn136: "note", cicn137: "exec", cicn138: "thumbup", cicn139: "thumbdown", cicn140: "film", cicn141: "camera", cicn142: "down", cicn143: "up",
   cicn161: "money", cicn171: "film", cicn173: "warn", caution: "warn" };
@@ -1234,7 +1292,9 @@ function dialog({ title = "", w = 420, build, modalLabel }) {
     setTimeout(() => { const f = box.querySelector("[autofocus]") || box.querySelector(".btn.def"); if (f) f.focus(); }, 0);
   });
 }
-const btn = (label, onclick, opts = {}) => h("button", { class: "btn" + (opts.def ? " def" : "") + (opts.cls ? " " + opts.cls : ""), onclick, disabled: opts.disabled, "data-cancel": opts.cancel ? "" : null, type: "button" }, label);
+const btn = (label, onclick, opts = {}) => h("button", { class: "btn" + (opts.def ? " def" : "") + (opts.cls ? " " + opts.cls : ""),
+  onclick: e => { if (e.currentTarget.disabled) return; Snd.play("Small Click"); if (onclick) onclick(e); },
+  disabled: opts.disabled, "data-cancel": opts.cancel ? "" : null, type: "button" }, label);
 function dhead(icon, text) { return h("div", { class: "dhead" }, icon ? img(icon) : null, h("h2", null, text)); }
 
 function giveMessage(text, icon = "cicn136") {       // GiveMessage
@@ -1298,10 +1358,18 @@ function buildMenubar() {
   mb.append(tabs);
   mb.append(h("div", { id: "clock" },
     h("span", { class: "dt" }),
-    h("div", { class: "vol" },
-      h("button", { class: "snd", type: "button", title: "Toggle sound", onclick: () => { Snd.on = !Snd.on; Store.lsSet("muted", !Snd.on); if (Snd.on) Snd.startBgm(); else Snd._setBgmVol(); syncSound(); } }),
-      h("input", { type: "range", id: "volume", min: 0, max: 100, value: Math.round(Snd.vol * 100),
-        oninput: e => { Snd.setVolume(e.target.value / 100); e.target.style.setProperty("--p", e.target.value + "%"); Store.lsSet("volume", Snd.vol); } })
+    h("button", { class: "snd", type: "button", title: "Toggle all sound", onclick: () => { Snd.on = !Snd.on; Store.lsSet("muted", !Snd.on); if (Snd.on) Snd.startBgm(); else Snd._setBgmVol(); syncSound(); } }),
+    h("div", { class: "vol vol-stack" },
+      h("div", { class: "vol-row" },
+        h("div", { class: "vol-ico", id: "sfx-ico", title: "Sound effects" }),
+        h("input", { type: "range", id: "volume", min: 0, max: 100, value: Math.round(Snd.vol * 100), title: "Sound effects volume",
+          oninput: e => { Snd.setVolume(e.target.value / 100); e.target.style.setProperty("--p", e.target.value + "%"); Store.lsSet("volume", Snd.vol); syncSound(); } })
+      ),
+      h("div", { class: "vol-row" },
+        h("div", { class: "vol-ico", id: "music-ico", title: "Music" }),
+        h("input", { type: "range", id: "musicVolume", min: 0, max: 100, value: Math.round((Snd.musicVol != null ? Snd.musicVol : 0.85) * 100), title: "Music volume",
+          oninput: e => { Snd.setMusicVolume(e.target.value / 100); e.target.style.setProperty("--p", e.target.value + "%"); Store.lsSet("musicVolume", Snd.musicVol); syncSound(); } })
+      )
     )
   ));
   syncSound();
@@ -1355,9 +1423,14 @@ function updateNavTabs() {
 
 function toggleSound() { Snd.on = !Snd.on; if (Snd.on && Snd.vol <= 0) Snd.vol = 0.6; syncSound(); Store.lsSet("muted", !Snd.on); }
 function syncSound() {
-  const e = $("#clock .snd"), r = $("#volume"); if (!e) return;
-  rc(e, icon(Snd.on && Snd.vol > 0 ? "sound" : "mute")); e.classList.toggle("off", !Snd.on);
-  if (r) { r.value = Snd.on ? Math.round(Snd.vol * 100) : 0; r.style.setProperty("--p", r.value + "%"); }
+  const e = $("#clock .snd"), r = $("#volume"), rm = $("#musicVolume");
+  const sfxIco = $("#sfx-ico"), musIco = $("#music-ico");
+  if (!e) return;
+  rc(e, icon(Snd.on ? "sound" : "mute")); e.classList.toggle("off", !Snd.on);
+  if (r) { r.value = Math.round(Snd.vol * 100); r.style.setProperty("--p", r.value + "%"); }
+  if (rm) { const mv = Snd.musicVol != null ? Snd.musicVol : 0.85; rm.value = Math.round(mv * 100); rm.style.setProperty("--p", rm.value + "%"); }
+  if (sfxIco) { rc(sfxIco, icon(Snd.on && Snd.vol > 0 ? "sound" : "mute")); sfxIco.classList.toggle("off", !Snd.on || Snd.vol <= 0); }
+  if (musIco) { rc(musIco, icon("music")); musIco.classList.toggle("off", !Snd.on || (Snd.musicVol != null ? Snd.musicVol : 0.85) <= 0); }
 }
 function closeMenu() { if (!openMenu) return; openMenu.t.classList.remove("open"); openMenu.m.remove(); openMenu = null; }
 function toggleMenu(i, t) {
@@ -1426,6 +1499,11 @@ async function newCompanyFlow() {                    // GetNewCompanyInfo
   const r = await dialog({ w: 360, modalLabel: "New Company", build(b, close) {
     const n = h("input", { class: "fld", id: "co-ceo", value: S.prefs.lastName, maxlength: 60, autofocus: true });
     const c = h("input", { class: "fld", id: "co-name", value: S.prefs.lastCompany, maxlength: 60 });
+    // Select all so players can type over the default without backspacing
+    const selectAll = el => { try { el.focus(); el.select(); } catch (e) {} };
+    n.addEventListener("focus", () => selectAll(n));
+    c.addEventListener("focus", () => selectAll(c));
+    setTimeout(() => selectAll(n), 30);
     const ok = btn("Start", () => close({ ceo: n.value.trim() || "Anonymous", name: c.value.trim() || "Untitled Pictures" }), { def: true });
     b.append(dhead("cicn141", "New Game"),
       h("p", { style: "margin:0" }, "Who are you, and what will your studio be called?"),
@@ -1794,15 +1872,63 @@ function getCastAndCrew(m) {                          // GetCastAndCrew
     "Finally, choose a sound mix for your movie."];
   return dialog({ w: 560, modalLabel: "Cast & Crew", build(b, close) {
     let step = 0, sel = -1, unavailable = 0;
+    let sortKey = "price", sortDir = -1; // default: price high → low
     const title = h("h2"), roleIconWrap = h("div"), tb = h("table"), err = h("div", { class: "errline" });
-    const budgetLine = h("div", { class: "num" });
+    const budgetMeter = h("div", { class: "budget-meter bm-green" });
+    const headsEl = h("div", { class: "colhead", style: "grid-template-columns:40% 28% 1fr" });
     const selBtn = btn("Select", () => doSelect(), { def: true, disabled: true });
-    const skipBtn = btn("Skip", () => { Snd.play("Small Click"); nextStep(); });
+    const skipBtn = btn("Skip", () => { nextStep(); });
     const doneBtn = btn("Done", () => { if (!m.cast.dir) { setErr("Please select a director for your film."); return; } close(true); });
     const role = () => ROLES[step];
     const setErr = t => rc(err, ...(t ? [img("cicn173"), t] : []));
+    const updateBudgetMeter = () => {
+      const rem = m.remaining, tot = Math.max(1, m.budget);
+      const pct = Math.max(0, Math.min(100, (rem / tot) * 100));
+      let cls = "bm-green", hint = "Healthy — leave ~$10–15M for production.";
+      if (rem < 15) { cls = "bm-red"; hint = "Low — under $15M may struggle to finish filming."; }
+      else if (rem < 25) { cls = "bm-yellow"; hint = "Getting tight — watch production costs."; }
+      budgetMeter.className = "budget-meter " + cls;
+      rc(budgetMeter,
+        h("div", { class: "bm-labels" },
+          h("span", null, "Budget remaining"),
+          h("span", { class: "bm-rem" }, money(rem) + " / " + money(m.budget))),
+        h("div", { class: "bm-track" }, h("div", { class: "bm-fill", style: "width:" + pct + "%" })),
+        h("div", { class: "bm-hint" }, hint));
+    };
+    const sortInd = key => sortKey === key ? (sortDir > 0 ? "▲" : "▼") : "";
+    const renderHeads = () => {
+      if (step >= ROLES.length) {
+        rc(headsEl, h("span", null, "Role"), h("span", null, "Choice"), h("span", null, "Cost"));
+        return;
+      }
+      const mk = (label, key, style) => {
+        const ind = h("span", { class: "sort-ind" }, sortInd(key));
+        const sp = h("span", { class: "sortable", style: style || "", title: "Sort by " + label }, label, ind);
+        sp.addEventListener("click", () => {
+          if (sortKey === key) sortDir = -sortDir;
+          else { sortKey = key; sortDir = key === "price" ? -1 : 1; }
+          draw();
+        });
+        return sp;
+      };
+      rc(headsEl, mk("Name", "name", "width:40%"), mk("Price", "price", "width:28%"), h("span", null, "Status:"));
+    };
+    // Work with indices into the original category list so unavailable stays correct
+    const orderedList = () => {
+      const list = S.prefs.cast[role().cat];
+      const idxs = list.map((_, i) => i);
+      idxs.sort((a, b) => {
+        const pa = list[a], pb = list[b];
+        let cmp = 0;
+        if (sortKey === "price") cmp = (pa.price || 0) - (pb.price || 0);
+        else cmp = String(pa.name || "").localeCompare(String(pb.name || ""));
+        return cmp * sortDir || a - b;
+      });
+      return idxs;
+    };
+    let selectedName = null;
     const enterStep = () => {
-      sel = -1;
+      sel = -1; selectedName = null;
       if (step >= ROLES.length) {
         title.textContent = "Cast & crew summary";
         rc(roleIconWrap);
@@ -1818,37 +1944,46 @@ function getCastAndCrew(m) {                          // GetCastAndCrew
         lines.push(h("tr", null, h("td", { style: "font-weight:700" }, "Total spent on crew"), h("td", null, ""), h("td", { class: "num", style: "font-weight:700" }, money(spent))));
         lines.push(h("tr", null, h("td", { style: "font-weight:700" }, "Remaining"), h("td", null, ""), h("td", { class: "num", style: "font-weight:700" }, money(m.remaining))));
         rc(tb, ...lines);
-        // hide column headers via a flag on parent — swap headers
-        const heads = b.querySelector(".colhead");
-        if (heads) rc(heads, h("span", null, "Role"), h("span", null, "Choice"), h("span", null, "Cost"));
+        renderHeads();
         selBtn.disabled = true; skipBtn.disabled = true;
-        doneBtn.classList.add("def"); selBtn.classList.remove("def"); return;
+        doneBtn.classList.add("def"); selBtn.classList.remove("def");
+        updateBudgetMeter();
+        return;
       }
       const list = S.prefs.cast[role().cat];
       unavailable = rnd(list.length);                 // exactly one person per list is busy
       title.textContent = prompts[step];
       const ik = role().key;
       rc(roleIconWrap, h("div", { class: "role-icon", html: `<svg viewBox="0 0 24 24">${ROLE_ICONS[ik] || ""}</svg>` }));
-      const heads = b.querySelector(".colhead");
-      if (heads) rc(heads, h("span", null, "Name:"), h("span", null, "Price:"), h("span", null, "Status:"));
+      sortKey = "price"; sortDir = -1;
       skipBtn.disabled = step === 0;
       draw();
     };
     const nextStep = () => { step++; setErr(""); enterStep(); };
     const draw = () => {
-      budgetLine.textContent = "Budget: " + money(m.remaining) + " remaining of " + money(m.budget);
+      updateBudgetMeter();
       if (step >= ROLES.length) return;
       const list = S.prefs.cast[role().cat];
-      rc(tb, ...list.map((p, i) => {
+      const idxs = orderedList();
+      // restore sel from selectedName after re-sort
+      if (selectedName) {
+        const found = idxs.findIndex(i => list[i].name === selectedName);
+        sel = found >= 0 ? idxs[found] : -1;
+      }
+      renderHeads();
+      rc(tb, ...idxs.map(i => {
+        const p = list[i];
         const tr = h("tr", { tabindex: 0, class: (i === sel ? "sel " : "") + (i === unavailable ? "dim" : "") },
           h("td", { style: "width:40%" }, p.name), h("td", { class: "num", style: "width:28%" }, money(p.price)), h("td", null, i === unavailable ? "Unavailable" : "Available"));
-        tr.addEventListener("click", () => pick(i)); tr.addEventListener("dblclick", () => { pick(i); if (!selBtn.disabled) doSelect(); });
+        tr.addEventListener("click", () => pick(i));
+        tr.addEventListener("dblclick", () => { pick(i); if (!selBtn.disabled) doSelect(); });
         tr.addEventListener("keydown", e => { if (e.key === "Enter") { pick(i); if (!selBtn.disabled) doSelect(); } });
         return tr;
       }));
     };
     const pick = i => {
-      sel = i; const p = S.prefs.cast[role().cat][i]; const l = role().label;
+      sel = i; selectedName = S.prefs.cast[role().cat][i].name;
+      const p = S.prefs.cast[role().cat][i]; const l = role().label;
       if (i === unavailable) { setErr(`This ${l} isn't available to work on your project.`); selBtn.disabled = true; }
       else if (p.price > m.remaining) { setErr(l === "effects house" || l === "sound mix" ? `Sorry, you can't afford this ${l}.` : `Sorry, you can't afford this ${l}.`); selBtn.disabled = true; }
       else { setErr(""); selBtn.disabled = false; }
@@ -1861,8 +1996,8 @@ function getCastAndCrew(m) {                          // GetCastAndCrew
       nextStep();
     };
     b.append(h("div", { class: "dhead-role" }, h("div", null, title), roleIconWrap),
-      h("div", { class: "colhead", style: "grid-template-columns:40% 28% 1fr" }, h("span", null, "Name:"), h("span", null, "Price:"), h("span", null, "Status:")),
-      h("div", { class: "list", style: "height:auto;max-height:min(48vh,320px)" }, tb), budgetLine, err,
+      headsEl,
+      h("div", { class: "list", style: "height:auto;max-height:min(48vh,320px)" }, tb), budgetMeter, err,
       h("div", { class: "dbtns" },
         btn("Cancel", async () => { if (await ask("Are you sure? You will lose all money you have invested in this film.")) close(false); }, { cancel: true, cls: "left" }),
         btn("Budget…", async () => { await budgetDialog(m); draw(); if (sel >= 0) pick(sel); }),
@@ -1871,7 +2006,6 @@ function getCastAndCrew(m) {                          // GetCastAndCrew
   } });
 }
 
-// ---------------------------------------------------------------- budget, advertising, tag line, screening
 function budgetDialog(m) {                            // Budget
   return dialog({ w: 330, modalLabel: "Budget", build(b, close) {
     const f = h("input", { class: "fld num", id: "use-funds", inputmode: "numeric", value: "0", style: "width:5em" });
@@ -1913,34 +2047,82 @@ function advertiseDialog(m) {                         // Advertise
   const prices = [6, 4, 2, 1, 2, 3, 2, 2, 5, 2, 3, 1];
   while (m.ads.length < DATA.adKinds.length) m.ads.push(0);
   return dialog({ w: 520, modalLabel: "Advertise", build(b, close) {
-    let sel = 0; const tb = h("table"), err = h("div", { class: "errline" }), bud = h("div", { class: "num" });
+    let sel = 0;
+    let sortKey = "price", sortDir = -1; // default: price high → low
+    const tb = h("table"), err = h("div", { class: "errline" });
+    const budgetMeter = h("div", { class: "budget-meter bm-green" });
+    const headsEl = h("div", { class: "colhead", style: "grid-template-columns:46% 26% 1fr" });
     const buy = btn("Buy", () => {
       if (prices[sel] > m.remaining) return;
       m.remaining -= prices[sel]; m.ads[sel] += prices[sel]; Snd.play("Money"); markDirty(); draw();
     }, { def: true });
+    const updateBudgetMeter = () => {
+      const rem = m.remaining, tot = Math.max(1, m.budget);
+      const pct = Math.max(0, Math.min(100, (rem / tot) * 100));
+      let cls = "bm-green", hint = "Healthy reserve for production and more ads.";
+      if (rem < 15) { cls = "bm-red"; hint = "Low — under $15M may struggle to finish filming."; }
+      else if (rem < 25) { cls = "bm-yellow"; hint = "Getting tight — watch production costs."; }
+      const adSpend = m.ads.reduce((a, b) => a + (b || 0), 0);
+      budgetMeter.className = "budget-meter " + cls;
+      rc(budgetMeter,
+        h("div", { class: "bm-labels" },
+          h("span", null, "Budget remaining"),
+          h("span", { class: "bm-rem" }, money(rem) + " / " + money(m.budget))),
+        h("div", { class: "bm-track" }, h("div", { class: "bm-fill", style: "width:" + pct + "%" })),
+        h("div", { class: "bm-hint" }, hint + (adSpend ? " · Ads so far $" + adSpend + "M" : "")));
+    };
+    const sortInd = key => sortKey === key ? (sortDir > 0 ? "▲" : "▼") : "";
+    const renderHeads = () => {
+      const mk = (label, key) => {
+        const ind = h("span", { class: "sort-ind" }, sortInd(key));
+        const sp = h("span", { class: "sortable", title: "Sort by " + label }, label, ind);
+        sp.addEventListener("click", () => {
+          if (sortKey === key) sortDir = -sortDir;
+          else { sortKey = key; sortDir = key === "price" || key === "have" ? -1 : 1; }
+          draw();
+        });
+        return sp;
+      };
+      rc(headsEl, mk("Kind", "kind"), mk("Unit price", "price"), mk("You have", "have"));
+    };
+    const ordered = () => {
+      const idxs = DATA.adKinds.map((_, i) => i);
+      idxs.sort((a, b) => {
+        let cmp = 0;
+        if (sortKey === "price") cmp = prices[a] - prices[b];
+        else if (sortKey === "have") cmp = (m.ads[a] || 0) - (m.ads[b] || 0);
+        else cmp = String(DATA.adKinds[a]).localeCompare(String(DATA.adKinds[b]));
+        return cmp * sortDir || a - b;
+      });
+      return idxs;
+    };
     const draw = () => {
-      rc(tb, ...DATA.adKinds.map((k, i) => {
-        const tr = h("tr", { tabindex: 0, class: i === sel ? "sel" : null },
-          h("td", { class: "wrap", style: "width:46%" }, k),
+      renderHeads();
+      updateBudgetMeter();
+      const idxs = ordered();
+      rc(tb, ...idxs.map(i => {
+        const unaffordable = prices[i] > m.remaining;
+        const tr = h("tr", { tabindex: 0, class: (i === sel ? "sel " : "") + (unaffordable ? "dim" : "") },
+          h("td", { class: "wrap", style: "width:46%" }, DATA.adKinds[i]),
           h("td", { class: "num", style: "width:26%" }, money(prices[i])),
-          h("td", { class: "num" }, m.ads[i] ? money(m.ads[i]) : "None."));
+          h("td", { class: "num" }, m.ads[i] ? money(m.ads[i]) : (unaffordable ? "Can't afford" : "None.")));
         tr.addEventListener("click", () => { sel = i; draw(); });
-        tr.addEventListener("dblclick", () => { sel = i; draw(); buy.click(); });
+        tr.addEventListener("dblclick", () => { if (prices[i] > m.remaining) return; sel = i; draw(); buy.click(); });
         return tr;
       }));
       const can = prices[sel] <= m.remaining;
       buy.disabled = !can; rc(err, ...(can ? [] : [img("cicn173"), "Sorry, you can't afford this."]));
-      bud.textContent = "Budget: " + money(m.remaining) + " remaining · total ad spend $" + m.ads.reduce((a, b) => a + b, 0) + "M";
     };
     b.append(dhead("cicn161", "Advertise…"),
       h("p", { style: "margin:0;color:var(--muted);font-size:13px" }, "TV & streaming still matters most for opening weekend. Mix channels to build buzz."),
-      h("div", { class: "colhead", style: "grid-template-columns:46% 26% 1fr" }, h("span", null, "Kind"), h("span", null, "Unit price"), h("span", null, "You have")),
+      headsEl,
       h("div", { class: "list", style: "height:auto;max-height:min(55vh,380px)" }, tb),
-      bud, err,
+      budgetMeter, err,
       h("div", { class: "dbtns" }, btn("Done", () => close(), { cancel: true }), buy));
     draw();
   } });
 }
+
 async function tagLineDialog(m) {                      // GetTagLine
   const r = await dialog({ w: 330, modalLabel: "Tag line", build(b, close) {
     const f = h("textarea", { class: "fld", id: "tagline", rows: 2, maxlength: 120, autofocus: true }); f.value = m.tag || "You'll really like it a lot.";
@@ -2578,16 +2760,47 @@ function renderTop() {                                // Reviews + mini chart
 async function castEditor(startCat) {                 // CastAndCrewEditor / NewCastAndCrew / EditCastAndCrew
   let cat = typeof startCat === "string" ? startCat : CATS[0];
   await dialog({ w: 470, modalLabel: "Edit cast and crew", build(b, close) {
-    let sel = -1; const tb = h("table");
-    const pop = h("select", { class: "fld", id: "cast-cat", style: "width:auto", onchange: () => { cat = pop.value; sel = -1; draw(); } }, CATS.map(c => h("option", { value: c, selected: c === cat }, c)));
+    let sel = -1, sortKey = "price", sortDir = -1;
+    const tb = h("table");
+    const headsEl = h("div", { class: "colhead", style: "grid-template-columns:65% 1fr" });
+    const pop = h("select", { class: "fld", id: "cast-cat", style: "width:auto", onchange: () => { cat = pop.value; sel = -1; sortKey = "price"; sortDir = -1; draw(); } }, CATS.map(c => h("option", { value: c, selected: c === cat }, c)));
     const editB = btn("Edit…", () => edit(sel), { disabled: true }), delB = btn("Delete", async () => {
       if (sel < 0) return; const list = S.prefs.cast[cat]; if (list.length <= 1) return;
       if (!await ask(`Remove ${list[sel].name} from the ${cat.toLowerCase()} list?`)) return;
       list.splice(sel, 1); sel = -1; savePrefs(); draw();
     }, { disabled: true });
+    const sortInd = key => sortKey === key ? (sortDir > 0 ? "▲" : "▼") : "";
+    const renderHeads = () => {
+      const mk = (label, key) => {
+        const ind = h("span", { class: "sort-ind" }, sortInd(key));
+        const sp = h("span", { class: "sortable", title: "Sort by " + label }, label + ":", ind);
+        sp.addEventListener("click", () => {
+          if (sortKey === key) sortDir = -sortDir;
+          else { sortKey = key; sortDir = key === "price" ? -1 : 1; }
+          draw();
+        });
+        return sp;
+      };
+      rc(headsEl, mk("Name", "name"), mk("Price", "price"));
+    };
+    const ordered = () => {
+      const list = S.prefs.cast[cat];
+      const idxs = list.map((_, i) => i);
+      idxs.sort((a, b) => {
+        const pa = list[a], pb = list[b];
+        let cmp = 0;
+        if (sortKey === "price") cmp = (pa.price || 0) - (pb.price || 0);
+        else cmp = String(pa.name || "").localeCompare(String(pb.name || ""));
+        return cmp * sortDir || a - b;
+      });
+      return idxs;
+    };
     const draw = () => {
       const list = S.prefs.cast[cat];
-      rc(tb, ...list.map((p, i) => {
+      const idxs = ordered();
+      renderHeads();
+      rc(tb, ...idxs.map(i => {
+        const p = list[i];
         const tr = h("tr", { tabindex: 0, class: i === sel ? "sel" : null }, h("td", { style: "width:65%" }, p.name), h("td", { class: "num" }, money(p.price)));
         tr.addEventListener("click", () => { sel = i; draw(); }); tr.addEventListener("dblclick", () => { sel = i; edit(i); });
         return tr;
@@ -2601,6 +2814,7 @@ async function castEditor(startCat) {                 // CastAndCrewEditor / New
       const r = await dialog({ w: 320, modalLabel: isNew ? "New" : "Edit", build(bb, cl) {
         const n = h("input", { class: "fld", id: "ce-name", value: p.name, maxlength: 60, autofocus: true });
         const pr = h("input", { class: "fld num", id: "ce-price", value: p.price, inputmode: "numeric", style: "width:4em" });
+        setTimeout(() => { try { n.focus(); n.select(); } catch (e) {} }, 30);
         bb.append(dhead("cicn141", (isNew ? "New: " : "Edit: ") + cat.replace(/s$/, "").replace(/house$/, "house")),
           h("label", { class: "grid2", style: "grid-template-columns:auto 1fr;align-items:center" }, h("span", null, "Name:"), n),
           h("div", { class: "row", style: "align-items:center;gap:6px" }, h("label", { for: "ce-price" }, "Price: "), pr, h("span", null, "million")),
@@ -2611,7 +2825,7 @@ async function castEditor(startCat) {                 // CastAndCrewEditor / New
       savePrefs(); draw();
     };
     b.append(h("div", { class: "dhead" }, img("cicn141"), h("h2", null, "Edit cast and crew:"), pop),
-      h("div", { class: "colhead", style: "grid-template-columns:65% 1fr" }, h("span", null, "Name:"), h("span", null, "Price:")),
+      headsEl,
       h("div", { class: "list", style: "height:190px" }, tb),
       h("div", { class: "dbtns" }, btn("Restore defaults", async () => {
         if (!await ask("Restore the original cast and crew lists? Your edits will be lost.")) return;
@@ -2624,7 +2838,11 @@ async function castEditor(startCat) {                 // CastAndCrewEditor / New
 // ---------------------------------------------------------------- boot
 async function boot() {
   document.documentElement.style.setProperty("--tile", `url(${ASSETS.ppat128})`);
-  try { const v = Store.lsGet("volume"); if (typeof v === "number") Snd.vol = v; if (Store.lsGet("muted")) Snd.on = false; } catch (e) {}
+  try {
+    const v = Store.lsGet("volume"); if (typeof v === "number") Snd.vol = v;
+    const mv = Store.lsGet("musicVolume"); if (typeof mv === "number") Snd.musicVol = mv;
+    if (Store.lsGet("muted")) Snd.on = false;
+  } catch (e) {}
   buildMenubar(); syncSound();
   const vw = innerWidth;
   makeWin("main", "Main Menu");

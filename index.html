@@ -712,6 +712,49 @@ legend{
 .review-card .quote{ font-size:15px; line-height:1.45; margin:0; }
 .review-card.new-rev{ background:rgba(232,168,56,.12); }
 
+
+.review-card.new-rev{ background:rgba(232,168,56,.12); }
+
+/* ---- box office charts ---- */
+.chart-wrap{
+  display:flex; flex-direction:column; gap:6px;
+}
+.chart-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:6px;
+}
+.chart-card{
+  background: linear-gradient(180deg, #fffef8, var(--paper2));
+  border:2px solid var(--wood-light); border-radius: 10px;
+  padding:6px 8px 8px;
+  box-shadow: 0 2px 0 rgba(139,94,60,.08);
+  min-width:0;
+}
+.chart-card h4{
+  margin:0 0 4px; font:700 10px var(--display); letter-spacing:.05em;
+  text-transform:uppercase; color:var(--wood2);
+}
+.chart-svg{ width:100%; height:auto; display:block; }
+.chart-legend{
+  display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:2px;
+  font-size:11px; color:var(--muted);
+}
+.chart-legend i{
+  display:inline-block; width:8px; height:8px; border-radius:2px;
+  margin-right:3px; vertical-align:0; border:1px solid #4a3420;
+}
+.chart-empty{ color:var(--muted); font-size:12px; padding:6px 2px; }
+.charts-under-msg{ margin-top:8px; flex:none; }
+.info-tabs{ display:flex; gap:6px; margin-bottom:8px; }
+.info-tab{
+  height:32px; padding:0 14px; border-radius:10px; border:2px solid #4a3420;
+  background: linear-gradient(180deg, #e8d5a8, #c9a06a);
+  font:600 13px var(--display); cursor:pointer; color:var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+}
+.info-tab.active{
+  background: linear-gradient(180deg, #ffe08a, var(--accent));
+}
+
 </style>
 
 <div id="menubar" role="menubar"></div>
@@ -1162,7 +1205,8 @@ const S = {
   slot: null,      // save slot key
   dirty: false,
 };
-function defaultPrefs() { return { v: 2, cast: clone(DATA.cast), top20: clone(DATA.top20), lastName: "Your Name", lastCompany: "Starlight Pictures" }; }
+function defaultPrefs() { return { v: 2, cast: clone(DATA.cast), distributors: clone(DATA.distributors), top20: clone(DATA.top20), lastName: "Your Name", lastCompany: "Starlight Pictures" }; }
+function distList() { return (S.prefs && S.prefs.distributors && S.prefs.distributors.length) ? S.prefs.distributors : DATA.distributors; }
 function newCompany(ceo, name) {
   return { name, ceo, status: 1, spent: 0, income: 0, funds: 15, lastNet: null, movies: [], month: 1 + rnd(12), day: 4, week: 0 };
 }
@@ -1339,7 +1383,7 @@ const MENUS = [
     { t: "Movie", f: () => { if (S.cur) { renderMovie(); showWin("movie"); } }, dis: !S.cur },
     { t: "Reviews", k: "⌘B", f: () => { if (S.cur && S.cur.rel) { renderTop(); showWin("top"); } }, dis: !(S.cur && S.cur.rel) },
   ] },
-  { title: "Cast and Crew", items: () => CATS.map(c => ({ t: c, f: () => castEditor(c) })) },
+  { title: "Cast and Crew", items: () => ["Distributors", ...CATS].map(c => ({ t: c, f: () => castEditor(c) })) },
 ];
 let openMenu = null;
 function buildMenubar() {
@@ -1683,15 +1727,29 @@ function renderCompany() {                            // Dashboard
 
 function movieInfo(i) {                               // GetMovieInfo / DoMovieInfoList
   const list = S.co.movies; if (!list.length) return;
-  return dialog({ w: 470, modalLabel: "Movie info", build(b, close) {
-    const head = h("span", null); const box = h("div", { class: "list", style: "height:260px" });
+  return dialog({ w: 520, modalLabel: "Movie info", build(b, close) {
+    let tab = "details";
+    const head = h("span", null);
+    const tabsEl = h("div", { class: "info-tabs" });
+    const box = h("div", { class: "list", style: "height:300px;overflow:auto" });
     const prev = btn("Previous", () => { i--; draw(); }), next = btn("Next", () => { i++; draw(); });
+    const drawTabs = () => {
+      rc(tabsEl,
+        h("button", { class: "info-tab" + (tab === "details" ? " active" : ""), type: "button", onclick: () => { tab = "details"; draw(); } }, "Details"),
+        h("button", { class: "info-tab" + (tab === "charts" ? " active" : ""), type: "button", onclick: () => { tab = "charts"; draw(); } }, "Charts")
+      );
+    };
     const draw = () => {
       const m = list[i]; head.textContent = m.title + "  (" + (i + 1) + " of " + list.length + ")";
       prev.disabled = i === 0; next.disabled = i === list.length - 1;
-      rc(box, h("table", null, infoRows(m).map(([k, v]) => h("tr", null, h("td", { style: "font-weight:bold;vertical-align:top" }, k), h("td", { class: "wrap" }, v)))));
+      drawTabs();
+      if (tab === "charts") {
+        rc(box, buildHistoryCharts(m.history));
+      } else {
+        rc(box, h("table", null, infoRows(m).map(([k, v]) => h("tr", null, h("td", { style: "font-weight:bold;vertical-align:top" }, k), h("td", { class: "wrap" }, v)))));
+      }
     };
-    b.append(h("div", { class: "dhead" }, img("cicn140"), h("h2", null, "Movie info: "), head), box,
+    b.append(h("div", { class: "dhead" }, img("cicn140"), h("h2", null, "Movie info: "), head), tabsEl, box,
       h("div", { class: "dbtns" },
         btn("Description…", () => giveMessage(list[i].desc || "N/A", "cicn140"), { cls: "left" }),
         btn("Tag Line…", () => giveMessage(list[i].tag || "No tag line.", "cicn140")), prev, next, btn("Okay", () => close(), { def: true })));
@@ -1702,7 +1760,7 @@ function genreText(m) { return DATA.genres[m.genre - 1] + (m.animated ? ", anima
 function infoRows(m) {
   const res = m.dom === m.budget ? "Broken even" : m.dom > m.budget ? (m.dom > 150 ? "Blockbuster" : "Successful") : (m.dom > 15 ? "Failure" : "Major bomb");
   return [
-    ["Title: ", m.title], ["Genre: ", genreText(m)], ["Distributed by: ", DATA.distributors[m.distributor - 1]],
+    ["Title: ", m.title], ["Genre: ", genreText(m)], ["Distributed by: ", distList()[m.distributor - 1]],
     ["Result: ", res + ", " + (m.review > 2 ? "Critically acclaimed" : "Critically bashed")],
     ["Budget: $", m.budget + " million"], ["Domestic gross: $", m.dom + " million"], ["Overseas Gross: $", m.overseas + " million"],
     ["Worldwide Gross: $", (m.dom + m.overseas) + " million"], ["Released: ", m.released || "—"],
@@ -1828,12 +1886,16 @@ function askDistributor(m, idx, state) {              // GetNewMovieDistributor:
   return { text, offer };
 }
 function getDistributor(m) {
-  const state = { asked: Array(7).fill(false), offers: Array(7).fill(0) };
+  const nDist = distList().length;
+  const state = { asked: Array(nDist).fill(false), offers: Array(nDist).fill(0) };
   return dialog({ w: 480, modalLabel: "Select a distributor", build(b, close) {
     let sel = 0;
     const tb = h("table"), sbtn = btn("Select", () => close({ idx: sel + 1, offer: state.offers[sel] }), { def: true, disabled: true });
     const draw = () => {
-      rc(tb, ...DATA.distributors.map((d, i) => {
+      const dists = distList();
+      // keep asked/offers arrays sized to current list
+      while (state.asked.length < dists.length) { state.asked.push(false); state.offers.push(0); }
+      rc(tb, ...dists.map((d, i) => {
         const tr = h("tr", { tabindex: 0, class: i === sel ? "sel" : null }, h("td", { style: "width:50%" }, d),
           h("td", { class: "num" }, !state.asked[i] ? "Haven't asked." : state.offers[i] > 0 ? money(state.offers[i]) : "Rejected."));
         tr.addEventListener("click", () => { sel = i; draw(); });
@@ -2153,7 +2215,7 @@ async function testScreenDialog(m) {                   // TestScreen
   } });
   if (!r) return;
   m.dev.screening = r; m.dev.screenedWeek = true;
-  msg(r.lot ? "Test screening currently being held on the " + DATA.distributors[m.distributor - 1] + " lot." : "Test screening currently being held in " + r.city + ".", "cicn141");
+  msg(r.lot ? "Test screening currently being held on the " + distList()[m.distributor - 1] + " lot." : "Test screening currently being held in " + r.city + ".", "cicn141");
   markDirty(); renderMovie();
 }
 
@@ -2185,7 +2247,7 @@ function passWeekDevelopment(m) {
   // test screening results
   if (d.screening) {
     const r = rnd(7);
-    const where = d.screening.lot ? "Test screening held on the " + DATA.distributors[m.distributor - 1] + " lot" : "Test screening held in " + d.screening.city;
+    const where = d.screening.lot ? "Test screening held on the " + distList()[m.distributor - 1] + " lot" : "Test screening held in " + d.screening.city;
     if (r === 1) { msg(where + " was extremely positive.", "cicn138"); msg("Reviews posted to the internet raised good buzz by 10.", "cicn143"); d.good += 10; }
     else if (r === 2) { msg(where + " was positive.", "cicn138"); msg("Reviews posted to the internet raised good buzz by 7.", "cicn143"); d.good += 7; }
     else if (r === 3) { msg(where + " was negative.", "cicn139"); msg("Reviews posted to the internet raised bad buzz by 10.", "cicn142"); d.bad += 10; }
@@ -2289,11 +2351,160 @@ function getTheaters(m) {                             // GetTheaters
   msg(t + " theaters will run your film.", "cicn140");
 }
 
+
+// ---------------------------------------------------------------- box-office history & charts
+function recordWeekHistory(m) {
+  const R = m.rel; if (!R) return;
+  if (!R.history) R.history = [];
+  // avoid double-record if somehow called twice same week
+  if (R.history.length && R.history[R.history.length - 1].week === R.weeks) {
+    R.history[R.history.length - 1] = {
+      week: R.weeks, weekly: R.weekly, total: R.total, theaters: R.theaters, rank: R.lastRank || 0
+    };
+    return;
+  }
+  R.history.push({
+    week: R.weeks, weekly: R.weekly|0, total: R.total|0, theaters: R.theaters|0, rank: R.lastRank || 0
+  });
+}
+
+function chartBarSvg(series, opts = {}) {
+  // series: [{label, v}] ; pure SVG bar chart
+  const W = opts.w || 200, H = opts.h || 88;
+  const padL = 28, padR = 6, padT = 8, padB = 18;
+  const vals = series.map(s => Math.max(0, +s.v || 0));
+  const maxV = Math.max(1, ...vals);
+  const n = Math.max(1, series.length);
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const gap = n > 12 ? 2 : n > 6 ? 4 : 6;
+  const barW = Math.max(4, (innerW - gap * (n - 1)) / n);
+  const color = opts.color || "#e8a838";
+  const bars = series.map((s, i) => {
+    const v = Math.max(0, +s.v || 0);
+    const bh = (v / maxV) * innerH;
+    const x = padL + i * (barW + gap);
+    const y = padT + innerH - bh;
+    const lab = s.label != null ? String(s.label) : String(i + 1);
+    const showLab = n <= 16 || i === 0 || i === n - 1 || i % Math.ceil(n / 8) === 0;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1, bh).toFixed(1)}" rx="3" fill="${color}" stroke="#4a3420" stroke-width="1.2"/>` +
+      (showLab ? `<text x="${(x + barW / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="#7a6a55" font-family="Nunito,sans-serif">${lab}</text>` : "");
+  }).join("");
+  // y ticks
+  const ticks = [0, 0.5, 1].map(t => {
+    const y = padT + innerH * (1 - t);
+    const val = Math.round(maxV * t);
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(139,94,60,.18)" stroke-width="1"/>` +
+      `<text x="${padL - 3}" y="${y + 3}" text-anchor="end" font-size="9" fill="#7a6a55" font-family="Nunito,sans-serif">${val}</text>`;
+  }).join("");
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria || "chart"}">${ticks}${bars}</svg>`;
+}
+
+function chartLineSvg(series, opts = {}) {
+  const W = opts.w || 200, H = opts.h || 88;
+  const padL = 28, padR = 6, padT = 8, padB = 18;
+  const vals = series.map(s => Math.max(0, +s.v || 0));
+  const maxV = Math.max(1, ...vals);
+  const n = Math.max(1, series.length);
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const pts = series.map((s, i) => {
+    const x = padL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const y = padT + innerH - (Math.max(0, +s.v || 0) / maxV) * innerH;
+    return [x, y];
+  });
+  const poly = pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const dots = pts.map((p, i) => {
+    const lab = series[i].label != null ? String(series[i].label) : String(i + 1);
+    const showLab = n <= 16 || i === 0 || i === n - 1 || i % Math.ceil(n / 8) === 0;
+    return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#5a9e3f" stroke="#4a3420" stroke-width="1.2"/>` +
+      (showLab ? `<text x="${p[0].toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#7a6a55" font-family="Nunito,sans-serif">${lab}</text>` : "");
+  }).join("");
+  const ticks = [0, 0.5, 1].map(t => {
+    const y = padT + innerH * (1 - t);
+    const val = Math.round(maxV * t);
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(139,94,60,.18)" stroke-width="1"/>` +
+      `<text x="${padL - 3}" y="${y + 3}" text-anchor="end" font-size="9" fill="#7a6a55" font-family="Nunito,sans-serif">${val}</text>`;
+  }).join("");
+  const area = pts.length
+    ? `M ${pts[0][0].toFixed(1)} ${padT + innerH} L ` + poly + ` L ${pts[pts.length - 1][0].toFixed(1)} ${padT + innerH} Z`
+    : "";
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria || "chart"}">${ticks}` +
+    (area ? `<path d="${area}" fill="rgba(90,158,63,.18)"/>` : "") +
+    `<polyline fill="none" stroke="#5a9e3f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${poly}"/>${dots}</svg>`;
+}
+
+function chartRankSvg(series, opts = {}) {
+  // series[].v is rank 1..10 (or >10 / 0 = out of chart). #1 at top.
+  const W = opts.w || 200, H = opts.h || 88;
+  const padL = 28, padR = 6, padT = 8, padB = 18;
+  const n = Math.max(1, series.length);
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const gap = n > 12 ? 1.5 : n > 6 ? 3 : 4;
+  const barW = Math.max(3, (innerW - gap * (n - 1)) / n);
+  const color = opts.color || "#d45a4a";
+  const heightFor = r => {
+    if (!(r > 0) || r > 10) return 2;
+    return ((11 - r) / 10) * innerH;
+  };
+  const bars = series.map((s, i) => {
+    const r = +s.v || 0;
+    const bh = heightFor(r);
+    const x = padL + i * (barW + gap);
+    const y = padT + innerH - bh;
+    const lab = s.label != null ? String(s.label) : String(i + 1);
+    const showLab = n <= 12 || i === 0 || i === n - 1 || i % Math.ceil(n / 6) === 0;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(1, bh).toFixed(1)}" rx="2" fill="${color}" stroke="#4a3420" stroke-width="1"/>` +
+      (showLab ? `<text x="${(x + barW / 2).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="9" fill="#7a6a55" font-family="Nunito,sans-serif">${lab}</text>` : "");
+  }).join("");
+  const ticks = [
+    { t: 1, lab: "#1" }, { t: 0.5, lab: "#5" }, { t: 0, lab: "#10" }
+  ].map(({ t, lab }) => {
+    const y = padT + innerH * (1 - t);
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(139,94,60,.18)" stroke-width="1"/>` +
+      `<text x="${padL - 3}" y="${y + 3}" text-anchor="end" font-size="9" fill="#7a6a55" font-family="Nunito,sans-serif">${lab}</text>`;
+  }).join("");
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria || "rank chart"}">${ticks}${bars}</svg>`;
+}
+
+function buildHistoryCharts(history, opts = {}) {
+  if (!history || !history.length) {
+    return h("div", { class: "chart-empty" }, "No weekly data yet — pass weeks after release.");
+  }
+  const sz = { w: 200, h: 88 };
+  const weekly = history.map(r => ({ label: "W" + r.week, v: r.weekly }));
+  const totals = history.map(r => ({ label: "W" + r.week, v: r.total }));
+  const theaters = history.map(r => ({ label: "W" + r.week, v: r.theaters }));
+  const ranks = history.map(r => ({ label: "W" + r.week, v: r.rank || 11 }));
+  const peak = Math.max(...history.map(r => r.weekly));
+  const open = history[0].weekly;
+  const last = history[history.length - 1];
+  const bestRank = Math.min(...history.map(r => (r.rank > 0 ? r.rank : 99)));
+  const summary = h("div", { class: "chart-legend" },
+    h("span", null, "Open ", h("b", null, "$" + open + "M")),
+    h("span", null, "Peak ", h("b", null, "$" + peak + "M")),
+    h("span", null, "Dom ", h("b", null, "$" + last.total + "M")),
+    h("span", null, "Wks ", h("b", null, String(history.length))),
+    bestRank <= 10 ? h("span", null, "Best ", h("b", null, "#" + bestRank)) : null
+  );
+  const card = (title, svgHtml) => h("div", { class: "chart-card" },
+    h("h4", null, title),
+    h("div", { html: svgHtml })
+  );
+  return h("div", { class: "chart-wrap" },
+    summary,
+    h("div", { class: "chart-grid" },
+      card("Weekend gross ($M)", chartBarSvg(weekly, { ...sz, color: "#e8a838", aria: "Weekend gross" })),
+      card("Cumulative ($M)", chartLineSvg(totals, { ...sz, aria: "Cumulative gross" })),
+      card("Theaters", chartBarSvg(theaters, { ...sz, color: "#4a8fc2", aria: "Theaters" })),
+      card("Box office rank", chartRankSvg(ranks, { ...sz, color: "#d45a4a", aria: "Weekend rank" }))
+    )
+  );
+}
+
 // ---------------------------------------------------------------- release
 function releaseMovie(m) {                            // HandleMouseUp: RELEASE
   if (m.dev.pct < 100) { setError("Your film isn't ready for release."); return; }
   m.rel = { first: true, weeks: 0, weekly: 0, total: 0, theaters: m.dev.theaters, R: 0, reviews: [], critics: [false, false, false, false],
-    siskel: null, ebert: null, top: createTopTen(), next: [], lastRank: 0, released: dateStr(), press: [], unreadPress: 0 };
+    siskel: null, ebert: null, top: createTopTen(), next: [], lastRank: 0, released: dateStr(), press: [], unreadPress: 0, history: [] };
   m.rel.next = newOpenings(m.rel.top);
   sep(); msg(m.title + " opens in " + m.dev.theaters + " theaters next weekend.", "cicn140");
   Snd.play("Money"); markDirty();
@@ -2540,6 +2751,7 @@ async function passWeekReleased(m) {                  // PassWeekReleased
     }
   }
   updateTopTen(m);
+  recordWeekHistory(m);
   // occasional extra press as the run continues
   if (R.weeks > 0 && rnd(3) === 1) pushPressQuote(m);
 }
@@ -2597,7 +2809,8 @@ async function endRun(m) {                            // HandleMouseUp end-of-ru
   else if (c.status === 2) { if ((n > 10 && dom > 100) || (n > 5 && dom > 200)) c.status = 3; }
   else if (c.status === 3) { if ((n > 30 && dom > 100) || (n > 20 && dom > 200)) c.status = 4; }
   c.movies.push({ title: m.title, desc: m.desc, tag: m.tag, genre: m.genre, animated: m.animated, epic: m.epic, distributor: m.distributor,
-    budget: m.budget, dom: m.dom, overseas: ov, cast: m.cast, rating: m.rating, review: R.R, weeksProd: m.dev.weeksProd, weeksRel: R.weeks, ads: m.ads, released: R.released });
+    budget: m.budget, dom: m.dom, overseas: ov, cast: m.cast, rating: m.rating, review: R.R, weeksProd: m.dev.weeksProd, weeksRel: R.weeks, ads: m.ads, released: R.released,
+    history: (R.history || []).map(x => ({ week: x.week, weekly: x.weekly, total: x.total, theaters: x.theaters, rank: x.rank })) });
   S.cur = null; markDirty();
   hideWin("movie"); hideWin("top"); renderCompany(); showWin("company");
   // CheckTopTwenty
@@ -2670,7 +2883,7 @@ function renderMovie() {                              // UpdateMovieDevelopmentW
     h("b", null, "Music by"), h("span", null, nm("composer") || "No composer"),
     h("b", null, "Visual effects"), h("span", null, nm("fx") || "No effects house"),
     h("b", null, "Sound mix"), h("span", null, nm("sound") || "None"),
-    h("b", null, "Distributor"), h("span", null, DATA.distributors[m.distributor - 1]),
+    h("b", null, "Distributor"), h("span", null, distList()[m.distributor - 1]),
     h("b", null, "Budget"), h("span", { class: "num" }, money(m.budget)));
   const reviews = R ? h("fieldset", null, h("legend", null, "Reviews"), h("div", { class: "col", style: "gap:6px" },
     R.reviews.length ? R.reviews.map(r => h("div", { class: "row", style: "justify-content:space-between;gap:8px" }, h("span", null, r.c), h("span", { style: "color:var(--accent);letter-spacing:2px" }, "★".repeat(r.s) + "☆".repeat(4 - r.s)))) : h("span", { style: "color:var(--muted)" }, "No reviews yet."),
@@ -2758,19 +2971,43 @@ function renderTop() {                                // Reviews + mini chart
 
 // ---------------------------------------------------------------- cast & crew editor
 async function castEditor(startCat) {                 // CastAndCrewEditor / NewCastAndCrew / EditCastAndCrew
-  let cat = typeof startCat === "string" ? startCat : CATS[0];
+  const ALL_CATS = ["Distributors", ...CATS];
+  let cat = typeof startCat === "string" ? startCat : ALL_CATS[0];
+  if (!ALL_CATS.includes(cat)) cat = ALL_CATS[0];
   await dialog({ w: 470, modalLabel: "Edit cast and crew", build(b, close) {
-    let sel = -1, sortKey = "price", sortDir = -1;
+    let sel = -1, sortKey = "name", sortDir = 1;
     const tb = h("table");
     const headsEl = h("div", { class: "colhead", style: "grid-template-columns:65% 1fr" });
-    const pop = h("select", { class: "fld", id: "cast-cat", style: "width:auto", onchange: () => { cat = pop.value; sel = -1; sortKey = "price"; sortDir = -1; draw(); } }, CATS.map(c => h("option", { value: c, selected: c === cat }, c)));
+    const pop = h("select", { class: "fld", id: "cast-cat", style: "width:auto", onchange: () => {
+      cat = pop.value; sel = -1;
+      sortKey = isDist() ? "name" : "price"; sortDir = isDist() ? 1 : -1;
+      draw();
+    } }, ALL_CATS.map(c => h("option", { value: c, selected: c === cat }, c)));
+    const isDist = () => cat === "Distributors";
+    const getList = () => {
+      if (isDist()) {
+        if (!S.prefs.distributors) S.prefs.distributors = clone(DATA.distributors);
+        return S.prefs.distributors;
+      }
+      return S.prefs.cast[cat];
+    };
     const editB = btn("Edit…", () => edit(sel), { disabled: true }), delB = btn("Delete", async () => {
-      if (sel < 0) return; const list = S.prefs.cast[cat]; if (list.length <= 1) return;
-      if (!await ask(`Remove ${list[sel].name} from the ${cat.toLowerCase()} list?`)) return;
+      if (sel < 0) return;
+      const list = getList();
+      if (list.length <= 1) return;
+      const label = isDist() ? list[sel] : list[sel].name;
+      if (!await ask(`Remove ${label} from the ${cat.toLowerCase()} list?`)) return;
       list.splice(sel, 1); sel = -1; savePrefs(); draw();
     }, { disabled: true });
     const sortInd = key => sortKey === key ? (sortDir > 0 ? "▲" : "▼") : "";
     const renderHeads = () => {
+      if (isDist()) {
+        const ind = h("span", { class: "sort-ind" }, sortInd("name"));
+        const sp = h("span", { class: "sortable", title: "Sort by name" }, "Name:", ind);
+        sp.addEventListener("click", () => { if (sortKey === "name") sortDir = -sortDir; else { sortKey = "name"; sortDir = 1; } draw(); });
+        rc(headsEl, sp, h("span", null, ""));
+        return;
+      }
       const mk = (label, key) => {
         const ind = h("span", { class: "sort-ind" }, sortInd(key));
         const sp = h("span", { class: "sortable", title: "Sort by " + label }, label + ":", ind);
@@ -2784,31 +3021,66 @@ async function castEditor(startCat) {                 // CastAndCrewEditor / New
       rc(headsEl, mk("Name", "name"), mk("Price", "price"));
     };
     const ordered = () => {
-      const list = S.prefs.cast[cat];
+      const list = getList();
       const idxs = list.map((_, i) => i);
       idxs.sort((a, b) => {
-        const pa = list[a], pb = list[b];
         let cmp = 0;
-        if (sortKey === "price") cmp = (pa.price || 0) - (pb.price || 0);
-        else cmp = String(pa.name || "").localeCompare(String(pb.name || ""));
+        if (isDist()) {
+          cmp = String(list[a] || "").localeCompare(String(list[b] || ""));
+        } else {
+          const pa = list[a], pb = list[b];
+          if (sortKey === "price") cmp = (pa.price || 0) - (pb.price || 0);
+          else cmp = String(pa.name || "").localeCompare(String(pb.name || ""));
+        }
         return cmp * sortDir || a - b;
       });
       return idxs;
     };
     const draw = () => {
-      const list = S.prefs.cast[cat];
+      const list = getList();
       const idxs = ordered();
       renderHeads();
-      rc(tb, ...idxs.map(i => {
-        const p = list[i];
-        const tr = h("tr", { tabindex: 0, class: i === sel ? "sel" : null }, h("td", { style: "width:65%" }, p.name), h("td", { class: "num" }, money(p.price)));
-        tr.addEventListener("click", () => { sel = i; draw(); }); tr.addEventListener("dblclick", () => { sel = i; edit(i); });
-        return tr;
-      }));
-      editB.disabled = sel < 0; delB.disabled = sel < 0 || list.length <= 1;
+      if (isDist()) {
+        rc(tb, ...idxs.map(i => {
+          const name = list[i];
+          const tr = h("tr", { tabindex: 0, class: i === sel ? "sel" : null },
+            h("td", { style: "width:100%", class: "wrap" }, name),
+            h("td", { class: "num" }, ""));
+          tr.addEventListener("click", () => { sel = i; draw(); });
+          tr.addEventListener("dblclick", () => { sel = i; edit(i); });
+          return tr;
+        }));
+      } else {
+        rc(tb, ...idxs.map(i => {
+          const p = list[i];
+          const tr = h("tr", { tabindex: 0, class: i === sel ? "sel" : null },
+            h("td", { style: "width:65%" }, p.name), h("td", { class: "num" }, money(p.price)));
+          tr.addEventListener("click", () => { sel = i; draw(); });
+          tr.addEventListener("dblclick", () => { sel = i; edit(i); });
+          return tr;
+        }));
+      }
+      editB.disabled = sel < 0;
+      delB.disabled = sel < 0 || list.length <= 1;
     };
     const edit = async i => {
-      const list = S.prefs.cast[cat]; const isNew = i < 0;
+      const list = getList();
+      const isNew = i < 0;
+      if (isDist()) {
+        if (isNew && list.length >= 30) { giveMessage("30 max distributors."); return; }
+        const cur = isNew ? "New Studio" : list[i];
+        const r = await dialog({ w: 320, modalLabel: isNew ? "New distributor" : "Edit distributor", build(bb, cl) {
+          const n = h("input", { class: "fld", id: "ce-name", value: cur, maxlength: 40, autofocus: true });
+          setTimeout(() => { try { n.focus(); n.select(); } catch (e) {} }, 30);
+          bb.append(dhead("cicn141", isNew ? "New distributor" : "Edit distributor"),
+            h("label", { class: "grid2", style: "grid-template-columns:auto 1fr;align-items:center" }, h("span", null, "Name:"), n),
+            h("div", { class: "dbtns" }, btn("Cancel", () => cl(null), { cancel: true }), btn("Okay", () => cl(n.value.trim() || cur), { def: true })));
+        } });
+        if (r == null) return;
+        if (isNew) { list.push(r); sel = list.length - 1; } else list[i] = r;
+        savePrefs(); draw();
+        return;
+      }
       if (isNew && list.length >= 100) { giveMessage("100 max " + cat.toLowerCase() + "."); return; }
       const p = isNew ? { name: "Lloyd Christmas", price: 1 } : list[i];
       const r = await dialog({ w: 320, modalLabel: isNew ? "New" : "Edit", build(bb, cl) {
@@ -2828,8 +3100,10 @@ async function castEditor(startCat) {                 // CastAndCrewEditor / New
       headsEl,
       h("div", { class: "list", style: "height:190px" }, tb),
       h("div", { class: "dbtns" }, btn("Restore defaults", async () => {
-        if (!await ask("Restore the original cast and crew lists? Your edits will be lost.")) return;
-        S.prefs.cast = clone(DATA.cast); savePrefs(); sel = -1; draw();
+        if (!await ask("Restore the original cast, crew, and distributor lists? Your edits will be lost.")) return;
+        S.prefs.cast = clone(DATA.cast);
+        S.prefs.distributors = clone(DATA.distributors);
+        savePrefs(); sel = -1; draw();
       }, { cls: "left" }), delB, btn("New…", () => edit(-1)), editB, btn("Done", () => close(), { def: true })));
     draw();
   } });
@@ -2856,6 +3130,7 @@ async function boot() {
   const p = await Store.get("prefs");
   if (p && p.cast && p.top20) {
     S.prefs = Object.assign(defaultPrefs(), p);
+    if (!S.prefs.distributors || !S.prefs.distributors.length) S.prefs.distributors = clone(DATA.distributors);
     if ((p.v || 1) < 2) {                             // move old saves onto the modern roster and box-office records
       const mine = p.top20.filter(r => r[2]);
       S.prefs.cast = clone(DATA.cast);
